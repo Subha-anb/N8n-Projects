@@ -1,0 +1,238 @@
+{
+  "name": "GE 8_AI Retrospective Analysis & Jira Tasks",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "Sprint Retrospective Feedback",
+        "formDescription": "Share your honest feedback about the last sprint. Your input helps the team improve.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Your Name",
+              "fieldName": "name",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Sprint / Iteration",
+              "fieldName": "sprint",
+              "placeholder": "e.g. Sprint 24",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "What went well?",
+              "fieldType": "textarea",
+              "fieldName": "went_well"
+            },
+            {
+              "fieldLabel": "What didn't go well?",
+              "fieldType": "textarea",
+              "fieldName": "went_wrong"
+            },
+            {
+              "fieldLabel": "Suggestions for improvement",
+              "fieldType": "textarea",
+              "fieldName": "suggestions"
+            },
+            {
+              "fieldLabel": "How would you rate team morale this sprint?",
+              "fieldType": "dropdown",
+              "fieldName": "morale_rating",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "1 - Very low"
+                  },
+                  {
+                    "option": "2 - Low"
+                  },
+                  {
+                    "option": "3 - Neutral"
+                  },
+                  {
+                    "option": "4 - Good"
+                  },
+                  {
+                    "option": "5 - Excellent"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "612ef475-9d1a-4790-b0c2-d1bf2103b20a",
+      "name": "Retrospective Form",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.6,
+      "position": [
+        0,
+        16
+      ],
+      "webhookId": "4ef2501b-245c-4c81-8699-4bd7acf39096"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "responses": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are an agile coach analyzing sprint retrospective feedback from a single team member. Assess overall sentiment and morale, categorize the feedback into themes, and identify concrete, actionable improvement items the team can turn into tasks. Only produce actionable items that describe a specific action to take; if there are none, return an empty array. Respond strictly in the required JSON schema."
+            },
+            {
+              "content": "=Team member: {{ $json.name }}\nSprint: {{ $json.sprint }}\nSelf-reported morale rating (1-5): {{ $json.morale_rating }}\n\nWhat went well:\n{{ $json.went_well }}\n\nWhat did not go well:\n{{ $json.went_wrong }}\n\nSuggestions for improvement:\n{{ $json.suggestions }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {
+          "maxTokens": 1500,
+          "textFormat": {
+            "textOptions": {
+              "type": "json_schema",
+              "name": "retro_analysis",
+              "schema": "{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"overall_sentiment\",\"morale_score\",\"summary\",\"categories\",\"actionable_items\"],\"properties\":{\"overall_sentiment\":{\"type\":\"string\",\"enum\":[\"positive\",\"neutral\",\"negative\",\"mixed\"]},\"morale_score\":{\"type\":\"number\",\"description\":\"Overall morale on a 1-10 scale\"},\"summary\":{\"type\":\"string\"},\"categories\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"name\",\"feedback\"],\"properties\":{\"name\":{\"type\":\"string\"},\"feedback\":{\"type\":\"string\"}}}},\"actionable_items\":{\"type\":\"array\",\"items\":{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"title\",\"description\",\"priority\",\"category\"],\"properties\":{\"title\":{\"type\":\"string\"},\"description\":{\"type\":\"string\"},\"priority\":{\"type\":\"string\",\"enum\":[\"High\",\"Medium\",\"Low\"]},\"category\":{\"type\":\"string\"}}}}}}",
+              "strict": true
+            }
+          }
+        }
+      },
+      "id": "687ff408-72be-4714-8768-b27042d4e0ca",
+      "name": "Analyze Feedback",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.3,
+      "position": [
+        288,
+        0
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": null,
+          "name": "",
+          "__aiGatewayManaged": true
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const analysis = $('Analyze Feedback').first().json.output[0].content[0].text;\nconst sprint = $('Retrospective Form').first().json.sprint || '';\nconst items = Array.isArray(analysis.actionable_items) ? analysis.actionable_items : [];\nreturn items.map((a) => ({\n  json: {\n    title: a.title,\n    description: a.description,\n    priority: a.priority,\n    category: a.category,\n    sprint,\n    overall_sentiment: analysis.overall_sentiment,\n    morale_score: analysis.morale_score,\n    summary: analysis.summary,\n  },\n}));"
+      },
+      "id": "b15b5fcb-1ccf-4cb2-be2d-053d74d51815",
+      "name": "Split Actionable Items",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        832,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "project": {
+          "__rl": true,
+          "value": "10000",
+          "mode": "list",
+          "cachedResultName": "Golden Eagle"
+        },
+        "issueType": {
+          "__rl": true,
+          "value": "10003",
+          "mode": "list",
+          "cachedResultName": "Task"
+        },
+        "summary": "=[Retro] {{ $json.title }}",
+        "additionalFields": {
+          "description": "={{ $json.description }}\n\n----\nSprint: {{ $json.sprint }}\nCategory: {{ $json.category }}\nSuggested priority: {{ $json.priority }}\nTeam sentiment: {{ $json.overall_sentiment }} (morale {{ $json.morale_score }}/10)\n\nGenerated automatically from sprint retrospective feedback."
+        }
+      },
+      "id": "8ade9c03-9a77-4faa-8ee2-84feefcf96a7",
+      "name": "Create Jira Task",
+      "type": "n8n-nodes-base.jira",
+      "typeVersion": 1,
+      "position": [
+        1056,
+        0
+      ],
+      "credentials": {
+        "jiraSoftwareCloudApi": {
+          "id": "oxoFLKt1CUyAg0Yc",
+          "name": "Jira SW Cloud account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Retrospective Form": {
+      "main": [
+        [
+          {
+            "node": "Analyze Feedback",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Feedback": {
+      "main": [
+        [
+          {
+            "node": "Split Actionable Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Actionable Items": {
+      "main": [
+        [
+          {
+            "node": "Create Jira Task",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "5a9bd85c-abe1-47fc-aaca-bd739f9eb537",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ba24e5def98d93bfce9a27c04c08e11b4a7ae13a057d1a156fc63c6333dc8556"
+  },
+  "nodeGroups": [
+    {
+      "id": "e9af09fb-463b-42c3-8214-31f15a7d9435",
+      "name": "Feedback Analysis",
+      "nodeIds": [
+        "687ff408-72be-4714-8768-b27042d4e0ca"
+      ],
+      "description": "Analyzes retro feedback: sentiment, morale, categories, and actionable items."
+    },
+    {
+      "id": "36f46a59-2183-4ebf-a6e4-2fc4b6f84854",
+      "name": "Create Jira Tasks",
+      "nodeIds": [
+        "b15b5fcb-1ccf-4cb2-be2d-053d74d51815",
+        "8ade9c03-9a77-4faa-8ee2-84feefcf96a7"
+      ],
+      "description": "Splits actionable items and creates a Jira task for each one."
+    }
+  ],
+  "id": "EbPvYCclv08TFX8k",
+  "tags": []
+}
